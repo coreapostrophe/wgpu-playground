@@ -1,3 +1,3 @@
 fn main() {
-    pollster::block_on(playgroundlib::run(3));
+    pollster::block_on(playgroundlib::run());
 }
