@@ -251,6 +251,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf43edc576402991846b093a7ca18a3477e0ef9c588cde84964b5d3e43016642"
 
 [[package]]
+name = "common"
+version = "0.1.0"
+dependencies = [
+ "cfg-if",
+ "env_logger",
+ "log",
+ "pollster",
+ "wgpu",
+ "winit",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1600,6 +1612,7 @@ name = "wgpu-playground"
 version = "0.1.0"
 dependencies = [
  "cfg-if",
+ "common",
  "env_logger",
  "log",
  "pollster",

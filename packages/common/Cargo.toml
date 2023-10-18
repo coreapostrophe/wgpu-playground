@@ -1,16 +1,16 @@
 [package]
-name = "wgpu-playground"
+name = "common"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[[bin]]
-name = "wgpu-playground"
-path = "src/main.rs"
+[lib]
+name = "commonlib"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-common = { path = "../common" }
 cfg-if.workspace = true
 env_logger.workspace = true
 log.workspace = true
