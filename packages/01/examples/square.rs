@@ -2,7 +2,7 @@ use std::mem::size_of;
 
 use bytemuck::cast_slice;
 use commonlib::{renderer::RendererBuilder, vertices::Vertex};
-use wgpu::{util::DeviceExt, vertex_attr_array, BufferUsages, VertexBufferLayout};
+use wgpu::{vertex_attr_array, VertexBufferLayout, util::DeviceExt, BufferUsages};
 use winit::{
     event::{Event, WindowEvent},
     event_loop::EventLoop,
@@ -11,15 +11,27 @@ use winit::{
 
 const VERTICES: &[Vertex] = &[
     Vertex {
-        position: [0.0, 0.5],
+        position: [-0.5, -0.5],
         color: [1.0, 0.0, 0.0],
     },
     Vertex {
-        position: [-0.5, -0.5],
+        position: [0.5, -0.5],
         color: [0.0, 1.0, 0.0],
     },
     Vertex {
+        position: [-0.5, 0.5],
+        color: [1.0, 1.0, 0.0],
+    },
+    Vertex {
+        position: [-0.5, 0.5],
+        color: [1.0, 1.0, 0.0],
+    },
+    Vertex {
         position: [0.5, -0.5],
+        color: [0.0, 1.0, 0.0],
+    },
+    Vertex {
+        position: [0.5, 0.5],
         color: [0.0, 0.0, 1.0],
     },
 ];
@@ -45,7 +57,7 @@ fn main() {
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_title("Vertex Buffer Triangle")
+        .with_title("Square")
         .build(&event_loop)
         .expect("to create window");
 
@@ -56,7 +68,7 @@ fn main() {
         .get_device(Some("Device"))
         .create_surface_configuration()
         .create_pipeline_layout(Some("Pipeline Layout"))
-        .create_shader_module(Some("Shader"), include_str!("vertex_buffer_triangle.wgsl"))
+        .create_shader_module(Some("Shader"), include_str!("square.wgsl"))
         .add_vertex_buffer(Vertex::desc())
         .create_render_pipeline(Some("Create Render Pipeline"))
         .build();
@@ -140,7 +152,7 @@ fn main() {
                         });
                     render_pass.set_pipeline(&render_pipeline);
                     render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-                    render_pass.draw(0..3, 0..1)
+                    render_pass.draw(0..6, 0..1)
                 }
                 queue.submit(Some(command_encoder.finish()));
                 surface_texture.present();

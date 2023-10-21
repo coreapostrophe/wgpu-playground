@@ -248,7 +248,7 @@ impl<'a> RendererBuilder<'a> {
         self
     }
 
-    pub fn add_buffer(mut self, buffer: VertexBufferLayout<'a>) -> Self {
+    pub fn add_vertex_buffer(mut self, buffer: VertexBufferLayout<'a>) -> Self {
         self.vertex_buffers.push(buffer);
         self
     }
