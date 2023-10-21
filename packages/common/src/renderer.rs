@@ -1,7 +1,7 @@
 use wgpu::{
     Adapter, Backends, Device, DeviceDescriptor, IndexFormat, Instance, InstanceDescriptor,
     PipelineLayout, PrimitiveState, PrimitiveTopology, Queue, RenderPipeline, ShaderModule,
-    Surface, SurfaceConfiguration, TextureUsages,
+    Surface, SurfaceConfiguration, TextureUsages, VertexBufferLayout,
 };
 use winit::window::Window;
 
@@ -90,7 +90,7 @@ impl Renderer {
     }
 }
 
-pub struct RendererBuilder {
+pub struct RendererBuilder<'a> {
     window: Option<Window>,
     instance: Option<Instance>,
     surface: Option<Surface>,
@@ -102,9 +102,10 @@ pub struct RendererBuilder {
     pipeline_layout: Option<PipelineLayout>,
     render_pipeline: Option<RenderPipeline>,
     primitive_state: Option<PrimitiveState>,
+    vertex_buffers: Vec<VertexBufferLayout<'a>>,
 }
 
-impl RendererBuilder {
+impl<'a> RendererBuilder<'a> {
     pub fn new(window: Window) -> Self {
         Self {
             window: Some(window),
@@ -118,12 +119,13 @@ impl RendererBuilder {
             pipeline_layout: None,
             render_pipeline: None,
             primitive_state: None,
+            vertex_buffers: Vec::new(),
         }
     }
 
     pub fn create_instance(mut self) -> Self {
         self.instance = Some(Instance::new(InstanceDescriptor {
-            backends: Backends::all(),
+            backends: Backends::VULKAN,
             dx12_shader_compiler: Default::default(),
         }));
         self
@@ -246,6 +248,11 @@ impl RendererBuilder {
         self
     }
 
+    pub fn add_buffer(mut self, buffer: VertexBufferLayout<'a>) -> Self {
+        self.vertex_buffers.push(buffer);
+        self
+    }
+
     pub fn create_render_pipeline(mut self, render_pipeline_label: Option<&str>) -> Self {
         let device = self.device.as_ref().expect("renderer to have a device");
         let shader = self
@@ -277,7 +284,7 @@ impl RendererBuilder {
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: "vs_main",
-                    buffers: &[],
+                    buffers: self.vertex_buffers.as_slice(),
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,

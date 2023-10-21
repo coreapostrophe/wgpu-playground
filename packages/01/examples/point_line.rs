@@ -1,14 +1,25 @@
 use commonlib::renderer::RendererBuilder;
-use winit::{event_loop::EventLoop, window::WindowBuilder, event::{Event, WindowEvent}};
+use wgpu::IndexFormat;
+use winit::{
+    event::{Event, WindowEvent},
+    event_loop::EventLoop,
+    window::WindowBuilder,
+};
 
 fn main() {
     env_logger::init();
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_title("Triangle Vertex Color")
+        .with_title("Point line")
         .build(&event_loop)
         .expect("to create window");
+
+    let mut primitive_type = "point-list";
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() > 1 {
+        primitive_type = &args[1];
+    }
 
     let mut renderer = RendererBuilder::new(window)
         .create_instance()
@@ -16,7 +27,18 @@ fn main() {
         .get_adapter()
         .get_device(Some("Device"))
         .create_surface_configuration()
-        .create_shader_module(Some("Shader"), include_str!("triangle_vertex_color.wgsl"))
+        .create_shader_module(Some("Shader"), include_str!("point_line.wgsl"))
+        .create_primitive_state(
+            match primitive_type {
+                "line-list" => wgpu::PrimitiveTopology::LineList,
+                "line-strip" => wgpu::PrimitiveTopology::LineStrip,
+                _ => wgpu::PrimitiveTopology::PointList,
+            },
+            match primitive_type {
+                "line-strip" => Some(IndexFormat::Uint32),
+                _ => None,
+            },
+        )
         .create_pipeline_layout(Some("Pipeline Layout"))
         .create_render_pipeline(Some("Render Pipeline"))
         .build();
@@ -90,7 +112,7 @@ fn main() {
                             depth_stencil_attachment: None,
                         });
                     render_pass.set_pipeline(&render_pipeline);
-                    render_pass.draw(0..3, 0..1)
+                    render_pass.draw(0..6, 0..1)
                 }
                 queue.submit(Some(command_encoder.finish()));
                 surface_texture.present();
