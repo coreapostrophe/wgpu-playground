@@ -1,6 +1,7 @@
 use wgpu::{
-    Adapter, Backends, Device, DeviceDescriptor, Instance, InstanceDescriptor, PipelineLayout,
-    Queue, RenderPipeline, ShaderModule, Surface, SurfaceConfiguration, TextureUsages,
+    Adapter, Backends, Device, DeviceDescriptor, IndexFormat, Instance, InstanceDescriptor,
+    PipelineLayout, PrimitiveState, PrimitiveTopology, Queue, RenderPipeline, ShaderModule,
+    Surface, SurfaceConfiguration, TextureUsages,
 };
 use winit::window::Window;
 
@@ -100,6 +101,7 @@ pub struct RendererBuilder {
     shader: Option<ShaderModule>,
     pipeline_layout: Option<PipelineLayout>,
     render_pipeline: Option<RenderPipeline>,
+    primitive_state: Option<PrimitiveState>,
 }
 
 impl RendererBuilder {
@@ -115,6 +117,7 @@ impl RendererBuilder {
             shader: None,
             pipeline_layout: None,
             render_pipeline: None,
+            primitive_state: None,
         }
     }
 
@@ -230,6 +233,19 @@ impl RendererBuilder {
         self
     }
 
+    pub fn create_primitive_state(
+        mut self,
+        topology: PrimitiveTopology,
+        strip_index_format: Option<IndexFormat>,
+    ) -> Self {
+        self.primitive_state = Some(wgpu::PrimitiveState {
+            topology,
+            strip_index_format,
+            ..Default::default()
+        });
+        self
+    }
+
     pub fn create_render_pipeline(mut self, render_pipeline_label: Option<&str>) -> Self {
         let device = self.device.as_ref().expect("renderer to have a device");
         let shader = self
@@ -244,6 +260,16 @@ impl RendererBuilder {
             .pipeline_layout
             .as_ref()
             .expect("renderer to have a pipeline layout");
+
+        let primitive_state = match self.primitive_state {
+            Some(primitive_state) => primitive_state,
+            None => wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                ..Default::default()
+            },
+        };
+
         self.render_pipeline = Some(device.create_render_pipeline(
             &wgpu::RenderPipelineDescriptor {
                 label: render_pipeline_label,
@@ -262,11 +288,7 @@ impl RendererBuilder {
                         write_mask: wgpu::ColorWrites::all(),
                     })],
                 }),
-                primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList,
-                    strip_index_format: None,
-                    ..Default::default()
-                },
+                primitive: primitive_state,
                 depth_stencil: Default::default(),
                 multisample: Default::default(),
                 multiview: Default::default(),

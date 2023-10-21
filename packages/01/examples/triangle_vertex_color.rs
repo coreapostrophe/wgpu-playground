@@ -1,14 +1,12 @@
 use commonlib::renderer::RendererBuilder;
-use winit::{
-    event::{Event, WindowEvent},
-    event_loop::EventLoop,
-    window::WindowBuilder,
-};
+use winit::{event_loop::EventLoop, window::WindowBuilder, event::{Event, WindowEvent}};
 
 fn main() {
+    env_logger::init();
+
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_title("01")
+        .with_title("Triangle Vertex Color")
         .build(&event_loop)
         .expect("to create window");
 
@@ -18,7 +16,7 @@ fn main() {
         .get_adapter()
         .get_device(Some("Device"))
         .create_surface_configuration()
-        .create_shader_module(Some("Shader"), include_str!("shader.wgsl"))
+        .create_shader_module(Some("Shader"), include_str!("triangle_vertex_color.wgsl"))
         .create_pipeline_layout(Some("Pipeline Layout"))
         .create_render_pipeline(Some("Render Pipeline"))
         .build();
@@ -79,9 +77,9 @@ fn main() {
                             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                                 ops: wgpu::Operations {
                                     load: wgpu::LoadOp::Clear(wgpu::Color {
-                                        r: 0.05,
-                                        g: 0.062,
-                                        b: 0.08,
+                                        r: 0.5,
+                                        g: 0.5,
+                                        b: 0.5,
                                         a: 1.0,
                                     }),
                                     store: true,
