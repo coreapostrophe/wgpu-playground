@@ -6,7 +6,7 @@ use wgpu::{
 };
 use winit::window::Window;
 
-pub struct Renderer {
+pub struct Renderer<'a> {
     window: Option<Window>,
     instance: Option<Instance>,
     surface: Option<Surface>,
@@ -17,9 +17,11 @@ pub struct Renderer {
     shader: Option<ShaderModule>,
     pipeline_layout: Option<PipelineLayout>,
     render_pipeline: Option<RenderPipeline>,
+    vertex_buffers_layout: Vec<VertexBufferLayout<'a>>,
+    bind_group_layouts: Vec<BindGroupLayout>,
 }
 
-impl Renderer {
+impl<'a> Renderer<'a> {
     pub fn window(&self) -> Option<&Window> {
         self.window.as_ref()
     }
@@ -88,6 +90,20 @@ impl Renderer {
     }
     pub fn mut_render_pipeline(&mut self) -> Option<&mut RenderPipeline> {
         self.render_pipeline.as_mut()
+    }
+
+    pub fn vertex_buffers_layout(&self) -> &Vec<VertexBufferLayout<'a>> {
+        self.vertex_buffers_layout.as_ref() as &Vec<VertexBufferLayout<'a>>
+    }
+    pub fn mut_vertex_buffers_layout(&mut self) -> &mut Vec<VertexBufferLayout<'a>> {
+        self.vertex_buffers_layout.as_mut()
+    }
+
+    pub fn bind_group_layouts(&self) -> &Vec<BindGroupLayout> {
+        self.bind_group_layouts.as_ref()
+    }
+    pub fn mut_bind_group_layouts(&mut self) -> &mut Vec<BindGroupLayout> {
+        self.bind_group_layouts.as_mut()
     }
 }
 
@@ -324,7 +340,7 @@ impl<'a> RendererBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> Renderer {
+    pub fn build(self) -> Renderer<'a> {
         Renderer {
             window: self.window,
             instance: self.instance,
@@ -336,6 +352,8 @@ impl<'a> RendererBuilder<'a> {
             shader: self.shader,
             pipeline_layout: self.pipeline_layout,
             render_pipeline: self.render_pipeline,
+            bind_group_layouts: self.bind_group_layouts,
+            vertex_buffers_layout: self.vertex_buffers_layout,
         }
     }
 }
