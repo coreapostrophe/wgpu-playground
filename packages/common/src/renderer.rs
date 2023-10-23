@@ -1,7 +1,8 @@
 use wgpu::{
-    Adapter, Backends, Device, DeviceDescriptor, IndexFormat, Instance, InstanceDescriptor,
-    PipelineLayout, PrimitiveState, PrimitiveTopology, Queue, RenderPipeline, ShaderModule,
-    Surface, SurfaceConfiguration, TextureUsages, VertexBufferLayout,
+    Adapter, Backends, BindGroupLayout, BindGroupLayoutEntry, Device, DeviceDescriptor,
+    IndexFormat, Instance, InstanceDescriptor, PipelineLayout, PrimitiveState, PrimitiveTopology,
+    Queue, RenderPipeline, ShaderModule, Surface, SurfaceConfiguration, TextureUsages,
+    VertexBufferLayout,
 };
 use winit::window::Window;
 
@@ -102,7 +103,8 @@ pub struct RendererBuilder<'a> {
     pipeline_layout: Option<PipelineLayout>,
     render_pipeline: Option<RenderPipeline>,
     primitive_state: Option<PrimitiveState>,
-    vertex_buffers: Vec<VertexBufferLayout<'a>>,
+    vertex_buffers_layout: Vec<VertexBufferLayout<'a>>,
+    bind_group_layouts: Vec<BindGroupLayout>,
 }
 
 impl<'a> RendererBuilder<'a> {
@@ -119,7 +121,8 @@ impl<'a> RendererBuilder<'a> {
             pipeline_layout: None,
             render_pipeline: None,
             primitive_state: None,
-            vertex_buffers: Vec::new(),
+            vertex_buffers_layout: Vec::new(),
+            bind_group_layouts: Vec::new(),
         }
     }
 
@@ -166,19 +169,19 @@ impl<'a> RendererBuilder<'a> {
             .expect("instance to have a compatible adapter")
     }
 
-    pub fn get_device(mut self, device_label: Option<&str>) -> Self {
+    pub fn get_device(mut self, label: Option<&str>) -> Self {
         let adapter = self.adapter.as_ref().expect("renderer to have an adapter");
-        let (device, queue) = pollster::block_on(Self::request_device(&adapter, device_label));
+        let (device, queue) = pollster::block_on(Self::request_device(&adapter, label));
         self.device = Some(device);
         self.queue = Some(queue);
         self
     }
 
-    async fn request_device(adapter: &Adapter, device_label: Option<&str>) -> (Device, Queue) {
+    async fn request_device(adapter: &Adapter, label: Option<&str>) -> (Device, Queue) {
         adapter
             .request_device(
                 &DeviceDescriptor {
-                    label: device_label,
+                    label,
                     features: Default::default(),
                     limits: Default::default(),
                 },
@@ -214,24 +217,12 @@ impl<'a> RendererBuilder<'a> {
         self
     }
 
-    pub fn create_shader_module(mut self, shader_label: Option<&str>, shader_path: &str) -> Self {
+    pub fn create_shader_module(mut self, label: Option<&str>, shader_path: &str) -> Self {
         let device = self.device.as_ref().expect("renderer to have a device");
         self.shader = Some(device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: shader_label,
+            label,
             source: wgpu::ShaderSource::Wgsl(shader_path.into()),
         }));
-        self
-    }
-
-    pub fn create_pipeline_layout(mut self, pipeline_layout_label: Option<&str>) -> Self {
-        let device = self.device.as_ref().expect("renderer to have a device");
-        self.pipeline_layout = Some(device.create_pipeline_layout(
-            &wgpu::PipelineLayoutDescriptor {
-                label: pipeline_layout_label,
-                bind_group_layouts: &[],
-                push_constant_ranges: &[],
-            },
-        ));
         self
     }
 
@@ -248,12 +239,40 @@ impl<'a> RendererBuilder<'a> {
         self
     }
 
-    pub fn add_vertex_buffer(mut self, buffer: VertexBufferLayout<'a>) -> Self {
-        self.vertex_buffers.push(buffer);
+    pub fn add_vertex_buffer_layout(mut self, buffer: VertexBufferLayout<'a>) -> Self {
+        self.vertex_buffers_layout.push(buffer);
         self
     }
 
-    pub fn create_render_pipeline(mut self, render_pipeline_label: Option<&str>) -> Self {
+    pub fn add_bind_group_layout(
+        mut self,
+        label: Option<&str>,
+        entries: &[BindGroupLayoutEntry],
+    ) -> Self {
+        let device = self.device.as_ref().expect("renderer to have a device");
+        let bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor { label, entries });
+        self.bind_group_layouts.push(bind_group_layout);
+        self
+    }
+
+    pub fn create_pipeline_layout(mut self, label: Option<&str>) -> Self {
+        let device = self.device.as_ref().expect("renderer to have a device");
+        let bind_group_layouts: &Vec<BindGroupLayout> = self.bind_group_layouts.as_ref();
+        let referenced_bind_group_layouts: Vec<&BindGroupLayout> =
+            bind_group_layouts.iter().collect();
+
+        self.pipeline_layout = Some(device.create_pipeline_layout(
+            &wgpu::PipelineLayoutDescriptor {
+                label,
+                bind_group_layouts: &referenced_bind_group_layouts,
+                push_constant_ranges: &[],
+            },
+        ));
+        self
+    }
+
+    pub fn create_render_pipeline(mut self, label: Option<&str>) -> Self {
         let device = self.device.as_ref().expect("renderer to have a device");
         let shader = self
             .shader
@@ -267,6 +286,7 @@ impl<'a> RendererBuilder<'a> {
             .pipeline_layout
             .as_ref()
             .expect("renderer to have a pipeline layout");
+        let vertex_buffers_layout: &Vec<VertexBufferLayout> = self.vertex_buffers_layout.as_ref();
 
         let primitive_state = match self.primitive_state {
             Some(primitive_state) => primitive_state,
@@ -279,12 +299,12 @@ impl<'a> RendererBuilder<'a> {
 
         self.render_pipeline = Some(device.create_render_pipeline(
             &wgpu::RenderPipelineDescriptor {
-                label: render_pipeline_label,
+                label,
                 layout: Some(&pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: "vs_main",
-                    buffers: self.vertex_buffers.as_slice(),
+                    buffers: &vertex_buffers_layout,
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,

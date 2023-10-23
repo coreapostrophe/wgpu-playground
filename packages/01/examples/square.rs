@@ -69,7 +69,7 @@ fn main() {
         .create_surface_configuration()
         .create_pipeline_layout(Some("Pipeline Layout"))
         .create_shader_module(Some("Shader"), include_str!("square.wgsl"))
-        .add_vertex_buffer(Vertex::desc())
+        .add_vertex_buffer_layout(Vertex::desc())
         .create_render_pipeline(Some("Create Render Pipeline"))
         .build();
 
