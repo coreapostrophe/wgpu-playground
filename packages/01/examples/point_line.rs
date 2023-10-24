@@ -28,7 +28,7 @@ fn main() {
         .get_device(Some("Device"))
         .create_surface_configuration()
         .create_shader_module(Some("Shader"), include_str!("point_line.wgsl"))
-        .create_primitive_state(
+        .set_primitive_state(
             match primitive_type {
                 "line-list" => wgpu::PrimitiveTopology::LineList,
                 "line-strip" => wgpu::PrimitiveTopology::LineStrip,

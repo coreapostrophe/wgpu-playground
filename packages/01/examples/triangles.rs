@@ -28,7 +28,7 @@ fn main() {
         .get_device(Some("Device"))
         .create_surface_configuration()
         .create_shader_module(Some("Shader"), include_str!("triangles.wgsl"))
-        .create_primitive_state(
+        .set_primitive_state(
             match primitive_type {
                 "triangle-strip" => wgpu::PrimitiveTopology::TriangleStrip,
                 _ => wgpu::PrimitiveTopology::TriangleList,

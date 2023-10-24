@@ -1,7 +1,7 @@
 use std::mem::size_of;
 
 use bytemuck::cast_slice;
-use commonlib::{renderer::RendererBuilder, vertices::Vertex};
+use commonlib::{renderer::RendererBuilder, vertices::Vertex2DColored};
 use wgpu::{util::DeviceExt, vertex_attr_array, BufferUsages, VertexBufferLayout};
 use winit::{
     event::{Event, WindowEvent},
@@ -9,16 +9,16 @@ use winit::{
     window::WindowBuilder,
 };
 
-const VERTICES: &[Vertex] = &[
-    Vertex {
+const VERTICES: &[Vertex2DColored] = &[
+    Vertex2DColored {
         position: [0.0, 0.5],
         color: [1.0, 0.0, 0.0],
     },
-    Vertex {
+    Vertex2DColored {
         position: [-0.5, -0.5],
         color: [0.0, 1.0, 0.0],
     },
-    Vertex {
+    Vertex2DColored {
         position: [0.5, -0.5],
         color: [0.0, 0.0, 1.0],
     },
@@ -29,11 +29,11 @@ trait Describable {
     fn desc<'a>() -> VertexBufferLayout<'a>;
 }
 
-impl Describable for Vertex {
+impl Describable for Vertex2DColored {
     const ATTRIBUTES: [wgpu::VertexAttribute; 2] = vertex_attr_array![0=>Float32x2, 1=>Float32x3];
     fn desc<'a>() -> VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
-            array_stride: size_of::<Vertex>() as wgpu::BufferAddress,
+            array_stride: size_of::<Vertex2DColored>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &Self::ATTRIBUTES,
         }
@@ -57,7 +57,7 @@ fn main() {
         .create_surface_configuration()
         .create_pipeline_layout(Some("Pipeline Layout"))
         .create_shader_module(Some("Shader"), include_str!("vertex_buffer_triangle.wgsl"))
-        .add_vertex_buffer_layout(Vertex::desc())
+        .add_vertex_buffer_layout(Vertex2DColored::desc())
         .create_render_pipeline(Some("Create Render Pipeline"))
         .build();
 

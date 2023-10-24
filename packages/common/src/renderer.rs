@@ -1,8 +1,8 @@
 use wgpu::{
-    Adapter, Backends, BindGroupLayout, BindGroupLayoutEntry, Device, DeviceDescriptor,
-    IndexFormat, Instance, InstanceDescriptor, PipelineLayout, PrimitiveState, PrimitiveTopology,
-    Queue, RenderPipeline, ShaderModule, Surface, SurfaceConfiguration, TextureUsages,
-    VertexBufferLayout,
+    Adapter, Backends, BindGroupLayout, BindGroupLayoutEntry, DepthStencilState, Device,
+    DeviceDescriptor, IndexFormat, Instance, InstanceDescriptor, PipelineLayout, PrimitiveState,
+    PrimitiveTopology, Queue, RenderPipeline, ShaderModule, Surface, SurfaceConfiguration,
+    TextureUsages, VertexBufferLayout,
 };
 use winit::window::Window;
 
@@ -121,6 +121,7 @@ pub struct RendererBuilder<'a> {
     primitive_state: Option<PrimitiveState>,
     vertex_buffers_layout: Vec<VertexBufferLayout<'a>>,
     bind_group_layouts: Vec<BindGroupLayout>,
+    depth_stencil_state: Option<DepthStencilState>,
 }
 
 impl<'a> RendererBuilder<'a> {
@@ -139,6 +140,7 @@ impl<'a> RendererBuilder<'a> {
             primitive_state: None,
             vertex_buffers_layout: Vec::new(),
             bind_group_layouts: Vec::new(),
+            depth_stencil_state: None,
         }
     }
 
@@ -242,19 +244,6 @@ impl<'a> RendererBuilder<'a> {
         self
     }
 
-    pub fn create_primitive_state(
-        mut self,
-        topology: PrimitiveTopology,
-        strip_index_format: Option<IndexFormat>,
-    ) -> Self {
-        self.primitive_state = Some(wgpu::PrimitiveState {
-            topology,
-            strip_index_format,
-            ..Default::default()
-        });
-        self
-    }
-
     pub fn add_vertex_buffer_layout(mut self, buffer: VertexBufferLayout<'a>) -> Self {
         self.vertex_buffers_layout.push(buffer);
         self
@@ -288,6 +277,24 @@ impl<'a> RendererBuilder<'a> {
         self
     }
 
+    pub fn set_primitive_state(
+        mut self,
+        topology: PrimitiveTopology,
+        strip_index_format: Option<IndexFormat>,
+    ) -> Self {
+        self.primitive_state = Some(wgpu::PrimitiveState {
+            topology,
+            strip_index_format,
+            ..Default::default()
+        });
+        self
+    }
+
+    pub fn set_depth_stencil_state(mut self, depth_stencil_state: DepthStencilState) -> Self {
+        self.depth_stencil_state = Some(depth_stencil_state);
+        self
+    }
+
     pub fn create_render_pipeline(mut self, label: Option<&str>) -> Self {
         let device = self.device.as_ref().expect("renderer to have a device");
         let shader = self
@@ -304,7 +311,7 @@ impl<'a> RendererBuilder<'a> {
             .expect("renderer to have a pipeline layout");
         let vertex_buffers_layout: &Vec<VertexBufferLayout> = self.vertex_buffers_layout.as_ref();
 
-        let primitive_state = match self.primitive_state {
+        let primitive_state = match self.primitive_state.clone() {
             Some(primitive_state) => primitive_state,
             None => wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
@@ -312,6 +319,8 @@ impl<'a> RendererBuilder<'a> {
                 ..Default::default()
             },
         };
+
+        let depth_stencil_state = self.depth_stencil_state.clone();
 
         self.render_pipeline = Some(device.create_render_pipeline(
             &wgpu::RenderPipelineDescriptor {
@@ -332,7 +341,7 @@ impl<'a> RendererBuilder<'a> {
                     })],
                 }),
                 primitive: primitive_state,
-                depth_stencil: Default::default(),
+                depth_stencil: depth_stencil_state,
                 multisample: Default::default(),
                 multiview: Default::default(),
             },

@@ -1,16 +1,15 @@
 use bytemuck::cast_slice;
-use cgmath::{Point3, Vector3};
+use cgmath::Point3;
 use commonlib::{
     renderer::RendererBuilder,
     transform::{create_projection, create_transforms, create_view_projection},
-    vertices::Vertex3D,
+    vertices::{vertex_data, Vertex4DColored},
 };
 use wgpu::{
     util::DeviceExt, vertex_attr_array, BindGroupEntry, BindGroupLayoutEntry, BufferAddress,
-    BufferUsages, ShaderStages, VertexBufferLayout, VertexAttribute,
+    BufferUsages, Extent3d, ShaderStages, TextureDescriptor, TextureUsages, VertexAttribute,
 };
 use winit::{
-    dpi::PhysicalSize,
     event::{Event, WindowEvent},
     event_loop::EventLoop,
     window::WindowBuilder,
@@ -18,34 +17,39 @@ use winit::{
 
 const IS_PERSPECTIVE: bool = true;
 
-fn create_vertices() -> [Vertex3D; 300] {
-    let mut vertices = [Vertex3D {
-        position: [0.0, 0.0, 0.0],
-    }; 300];
-    for i in 0..300 {
-        let t = 0.1 * (i as f32) / 30.0;
-        let x = (-t).exp() * (30.0 * t).sin();
-        let z = (-t).exp() * (30.0 * t).cos();
-        let y = 2.0 * t - 1.0;
-        vertices[i] = Vertex3D {
-            position: [x, y, z],
-        };
+fn create_vertex(position: [i8; 3], color: [i8; 3]) -> Vertex4DColored {
+    Vertex4DColored {
+        position: [
+            position[0] as f32,
+            position[1] as f32,
+            position[2] as f32,
+            1.0,
+        ],
+        color: [color[0] as f32, color[1] as f32, color[2] as f32, 1.0],
     }
-    vertices
 }
 
-const VERTEX_ATTRIBUTE: [VertexAttribute; 1] = vertex_attr_array![0=>Float32x3];
+fn create_vertices() -> Vec<Vertex4DColored> {
+    let (pos, col, _uv, _normal) = vertex_data::cube_data();
+    let mut data: Vec<Vertex4DColored> = Vec::with_capacity(pos.len());
+    for i in 0..pos.len() {
+        data.push(create_vertex(pos[i], col[i]));
+    }
+    data
+}
+
+const VERTEX_ATTRIBUTE: [VertexAttribute; 2] = vertex_attr_array![0=>Float32x4,1=>Float32x4];
 
 fn main() {
     env_logger::init();
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_title("Line 3D")
+        .with_title("Cube Face Color")
         .build(&event_loop)
         .expect("to create window");
 
-    let window_size: PhysicalSize<u32> = window.inner_size();
+    let window_size = window.inner_size();
 
     let mut renderer = RendererBuilder::new(window)
         .create_instance()
@@ -53,10 +57,9 @@ fn main() {
         .get_adapter()
         .get_device(Some("Device"))
         .create_surface_configuration()
-        .set_primitive_state(wgpu::PrimitiveTopology::LineStrip, Some(wgpu::IndexFormat::Uint32))
-        .create_shader_module(Some("Shader Module"), include_str!("line3d.wgsl"))
-        .add_vertex_buffer_layout(VertexBufferLayout {
-            array_stride: std::mem::size_of::<Vertex3D>() as BufferAddress,
+        .create_shader_module(Some("Shader"), include_str!("cube_face_color.wgsl"))
+        .add_vertex_buffer_layout(wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Vertex4DColored>() as BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &VERTEX_ATTRIBUTE,
         })
@@ -73,13 +76,21 @@ fn main() {
                 visibility: ShaderStages::VERTEX,
             }],
         )
+        .set_primitive_state(wgpu::PrimitiveTopology::TriangleList, None)
+        .set_depth_stencil_state(wgpu::DepthStencilState {
+            format: wgpu::TextureFormat::Depth24Plus,
+            depth_write_enabled: true,
+            depth_compare: wgpu::CompareFunction::LessEqual,
+            stencil: Default::default(),
+            bias: Default::default(),
+        })
         .create_pipeline_layout(Some("Pipeline Layout"))
         .create_render_pipeline(Some("Render Pipeline"))
         .build();
 
-    let camera_position: Point3<f32> = (1.5, 1.0, 3.0).into();
+    let camera_position: Point3<f32> = (3.0, 1.5, 3.0).into();
     let look_direction: Point3<f32> = (0.0, 0.0, 0.0).into();
-    let up_direction: Vector3<f32> = Vector3::unit_y();
+    let up_direction = cgmath::Vector3::unit_y();
 
     let model_matrix = create_transforms([0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]);
     let (view_matrix, _projection_matrix, view_projection_matrix) = create_view_projection(
@@ -89,6 +100,7 @@ fn main() {
         window_size.width as f32 / window_size.height as f32,
         IS_PERSPECTIVE,
     );
+
     let mvp_matrix = view_projection_matrix * model_matrix;
 
     let uniform_buffer =
@@ -106,7 +118,7 @@ fn main() {
             .device()
             .unwrap()
             .create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("Uniform Bind"),
+                label: Some("Uniform Bind Group"),
                 layout: renderer.bind_group_layouts().get(0).unwrap(),
                 entries: &[BindGroupEntry {
                     binding: 0,
@@ -130,7 +142,9 @@ fn main() {
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
-            } => control_flow.set_exit(),
+            } => {
+                control_flow.set_exit();
+            }
             Event::WindowEvent {
                 event: WindowEvent::Resized(size),
                 ..
@@ -150,6 +164,7 @@ fn main() {
                     create_projection(size.width as f32 / size.height as f32, IS_PERSPECTIVE);
                 let mvp_mat = new_projection_matrix * view_matrix * model_matrix;
                 let mvp_ref: &[f32; 16] = mvp_mat.as_ref();
+
                 renderer.queue().unwrap().write_buffer(
                     &uniform_buffer,
                     0,
@@ -162,7 +177,27 @@ fn main() {
                 let queue = renderer.queue().unwrap();
                 let render_pipeline = renderer.render_pipeline().unwrap();
                 let surface_texture = surface.get_current_texture().unwrap();
+                let surface_configuration = renderer.surface_configuration().unwrap();
+
                 let texture_view = surface_texture.texture.create_view(&Default::default());
+                let depth_texture = renderer
+                    .device()
+                    .unwrap()
+                    .create_texture(&TextureDescriptor {
+                        label: Some("Texture"),
+                        size: Extent3d {
+                            depth_or_array_layers: 1,
+                            width: surface_configuration.width,
+                            height: surface_configuration.height,
+                        },
+                        mip_level_count: 1,
+                        sample_count: 1,
+                        dimension: wgpu::TextureDimension::D2,
+                        format: wgpu::TextureFormat::Depth24Plus,
+                        usage: TextureUsages::RENDER_ATTACHMENT,
+                        view_formats: &[],
+                    });
+                let depth_view = depth_texture.create_view(&Default::default());
 
                 let mut command_encoder =
                     device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
@@ -172,6 +207,8 @@ fn main() {
                         command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                             label: None,
                             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                                view: &texture_view,
+                                resolve_target: None,
                                 ops: wgpu::Operations {
                                     load: wgpu::LoadOp::Clear(wgpu::Color {
                                         r: 0.5,
@@ -181,15 +218,22 @@ fn main() {
                                     }),
                                     store: true,
                                 },
-                                resolve_target: None,
-                                view: &texture_view,
                             })],
-                            depth_stencil_attachment: None,
+                            depth_stencil_attachment: Some(
+                                wgpu::RenderPassDepthStencilAttachment {
+                                    view: &depth_view,
+                                    depth_ops: Some(wgpu::Operations {
+                                        load: wgpu::LoadOp::Clear(1.0),
+                                        store: false,
+                                    }),
+                                    stencil_ops: None,
+                                },
+                            ),
                         });
                     render_pass.set_pipeline(&render_pipeline);
                     render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
                     render_pass.set_bind_group(0, &uniform_bind_group, &[]);
-                    render_pass.draw(0..300, 0..1)
+                    render_pass.draw(0..36, 0..1)
                 }
                 queue.submit(Some(command_encoder.finish()));
                 surface_texture.present();
