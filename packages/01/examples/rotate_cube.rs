@@ -1,8 +1,7 @@
 use bytemuck::cast_slice;
-use cgmath::Point3;
 use commonlib::{
+    projection::Projection,
     renderer::RendererBuilder,
-    transform::{create_projection, create_transforms, create_view_projection},
     vertices::{vertex_data, Vertex4DColored},
 };
 use wgpu::{
@@ -54,11 +53,9 @@ fn main() {
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_title("Cube Face Color")
+        .with_title("Rotate Cube")
         .build(&event_loop)
         .expect("to create window");
-
-    let window_size = window.inner_size();
 
     let mut renderer = RendererBuilder::new(window)
         .create_instance()
@@ -97,20 +94,11 @@ fn main() {
         .create_render_pipeline(Some("Render Pipeline"))
         .build();
 
-    let camera_position: Point3<f32> = (3.0, 1.5, 3.0).into();
-    let look_direction: Point3<f32> = (0.0, 0.0, 0.0).into();
-    let up_direction = cgmath::Vector3::unit_y();
-
-    let model_matrix = create_transforms([0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]);
-    let (view_matrix, _projection_matrix, view_projection_matrix) = create_view_projection(
-        camera_position,
-        look_direction,
-        up_direction,
-        window_size.width as f32 / window_size.height as f32,
-        is_perspective,
+    let mut projection = Projection::new(
+        renderer.surface_configuration().unwrap().width as f32,
+        renderer.surface_configuration().unwrap().height as f32,
     );
-
-    let mvp_matrix = view_projection_matrix * model_matrix;
+    projection.set_is_perspective(is_perspective);
 
     let uniform_buffer =
         renderer
@@ -118,7 +106,7 @@ fn main() {
             .unwrap()
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Uniform Buffer"),
-                contents: cast_slice(mvp_matrix.as_ref() as &[f32; 16]),
+                contents: cast_slice(projection.mvp_matrix_slice()),
                 usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
             });
 
@@ -171,37 +159,29 @@ fn main() {
                 let device = renderer.device().unwrap();
                 surface.configure(device, surface_configuration);
 
-                let new_projection_matrix =
-                    create_projection(size.width as f32 / size.height as f32, is_perspective);
-                let mvp_mat = new_projection_matrix * view_matrix * model_matrix;
+                projection.set_aspect_ratio(size.width as f32 / size.height as f32);
 
                 renderer.queue().unwrap().write_buffer(
                     &uniform_buffer,
                     0,
-                    bytemuck::cast_slice(mvp_mat.as_ref() as &[f32; 16]),
+                    bytemuck::cast_slice(projection.mvp_matrix_slice()),
                 );
             }
             Event::RedrawRequested(_) => {
-                let surface_configuration = renderer.surface_configuration().unwrap();
-
                 let current_time = std::time::Instant::now();
                 let current_duration = current_time - render_start_time;
                 let animated_duration = ANIMATION_SPEED * current_duration.as_secs_f32();
-                let model_matrix = create_transforms(
-                    [0.0, 0.0, 0.0],
-                    [animated_duration.sin(), animated_duration.cos(), 0.0],
-                    [1.0, 1.0, 1.0],
-                );
-                let new_projection_matrix = create_projection(
-                    surface_configuration.width as f32 / surface_configuration.height as f32,
-                    is_perspective,
-                );
-                let mvp_mat = new_projection_matrix * view_matrix * model_matrix;
+
+                projection.set_model_rotation([
+                    animated_duration.sin(),
+                    animated_duration.cos(),
+                    0.0,
+                ]);
 
                 renderer.queue().unwrap().write_buffer(
                     &uniform_buffer,
                     0,
-                    bytemuck::cast_slice(mvp_mat.as_ref() as &[f32; 16]),
+                    bytemuck::cast_slice(projection.mvp_matrix_slice()),
                 );
 
                 let surface = renderer.surface().unwrap();
