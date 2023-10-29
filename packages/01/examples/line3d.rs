@@ -7,7 +7,7 @@ use commonlib::{
 };
 use wgpu::{
     util::DeviceExt, vertex_attr_array, BindGroupEntry, BindGroupLayoutEntry, BufferAddress,
-    BufferUsages, ShaderStages, VertexBufferLayout, VertexAttribute,
+    BufferUsages, ShaderStages, VertexAttribute, VertexBufferLayout,
 };
 use winit::{
     dpi::PhysicalSize,
@@ -15,8 +15,6 @@ use winit::{
     event_loop::EventLoop,
     window::WindowBuilder,
 };
-
-const IS_PERSPECTIVE: bool = true;
 
 fn create_vertices() -> [Vertex3D; 300] {
     let mut vertices = [Vertex3D {
@@ -39,6 +37,16 @@ const VERTEX_ATTRIBUTE: [VertexAttribute; 1] = vertex_attr_array![0=>Float32x3];
 fn main() {
     env_logger::init();
 
+    let mut is_perspective = true;
+
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() > 1 {
+        is_perspective = match args[1].as_str() {
+            "ortho" => false,
+            _ => true,
+        }
+    }
+
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_title("Line 3D")
@@ -53,7 +61,10 @@ fn main() {
         .get_adapter()
         .get_device(Some("Device"))
         .create_surface_configuration()
-        .set_primitive_state(wgpu::PrimitiveTopology::LineStrip, Some(wgpu::IndexFormat::Uint32))
+        .set_primitive_state(
+            wgpu::PrimitiveTopology::LineStrip,
+            Some(wgpu::IndexFormat::Uint32),
+        )
         .create_shader_module(Some("Shader Module"), include_str!("line3d.wgsl"))
         .add_vertex_buffer_layout(VertexBufferLayout {
             array_stride: std::mem::size_of::<Vertex3D>() as BufferAddress,
@@ -87,7 +98,7 @@ fn main() {
         look_direction,
         up_direction,
         window_size.width as f32 / window_size.height as f32,
-        IS_PERSPECTIVE,
+        is_perspective,
     );
     let mvp_matrix = view_projection_matrix * model_matrix;
 
@@ -147,7 +158,7 @@ fn main() {
                 surface.configure(device, surface_configuration);
 
                 let new_projection_matrix =
-                    create_projection(size.width as f32 / size.height as f32, IS_PERSPECTIVE);
+                    create_projection(size.width as f32 / size.height as f32, is_perspective);
                 let mvp_mat = new_projection_matrix * view_matrix * model_matrix;
                 let mvp_ref: &[f32; 16] = mvp_mat.as_ref();
                 renderer.queue().unwrap().write_buffer(

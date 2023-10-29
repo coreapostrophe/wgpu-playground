@@ -15,8 +15,6 @@ use winit::{
     window::WindowBuilder,
 };
 
-const IS_PERSPECTIVE: bool = true;
-
 fn create_vertex(position: [i8; 3], color: [i8; 3]) -> Vertex4DColored {
     Vertex4DColored {
         position: [
@@ -42,6 +40,16 @@ const VERTEX_ATTRIBUTE: [VertexAttribute; 2] = vertex_attr_array![0=>Float32x4,1
 
 fn main() {
     env_logger::init();
+
+    let mut is_perspective = true;
+
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() > 1 {
+        is_perspective = match args[1].as_str() {
+            "ortho" => false,
+            _ => true,
+        }
+    }
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
@@ -98,7 +106,7 @@ fn main() {
         look_direction,
         up_direction,
         window_size.width as f32 / window_size.height as f32,
-        IS_PERSPECTIVE,
+        is_perspective,
     );
 
     let mvp_matrix = view_projection_matrix * model_matrix;
@@ -161,7 +169,7 @@ fn main() {
                 surface.configure(device, surface_configuration);
 
                 let new_projection_matrix =
-                    create_projection(size.width as f32 / size.height as f32, IS_PERSPECTIVE);
+                    create_projection(size.width as f32 / size.height as f32, is_perspective);
                 let mvp_mat = new_projection_matrix * view_matrix * model_matrix;
                 let mvp_ref: &[f32; 16] = mvp_mat.as_ref();
 

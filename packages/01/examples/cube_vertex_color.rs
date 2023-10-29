@@ -40,10 +40,19 @@ fn create_vertices() -> (Vec<Vertex4DColored>, Vec<u16>) {
 }
 
 const VERTEX_ATTRIBUTE: [VertexAttribute; 2] = vertex_attr_array![0=>Float32x4, 1=>Float32x4];
-const IS_PERSPECTIVE: bool = true;
 
 fn main() {
     env_logger::init();
+
+    let mut is_perspective = true;
+
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() > 1 {
+        is_perspective = match args[1].as_str() {
+            "ortho" => false,
+            _ => true,
+        }
+    }
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
@@ -104,7 +113,7 @@ fn main() {
         up_direction,
         renderer.surface_configuration().unwrap().width as f32
             / renderer.surface_configuration().unwrap().height as f32,
-        IS_PERSPECTIVE,
+        is_perspective,
     );
     let mvp_matrix = view_projection_matrix * model_matrix;
 
@@ -174,7 +183,7 @@ fn main() {
                 surface.configure(device, surface_configuration);
 
                 let new_projection_matrix =
-                    create_projection(size.width as f32 / size.height as f32, IS_PERSPECTIVE);
+                    create_projection(size.width as f32 / size.height as f32, is_perspective);
                 let mvp_matrix = new_projection_matrix * view_matrix * model_matrix;
 
                 let queue = renderer.queue().unwrap();
