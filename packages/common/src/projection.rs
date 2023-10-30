@@ -177,6 +177,19 @@ impl Projection {
         self.update_mvp_matrix();
     }
 
+    pub fn replace_projection_matrix(&mut self, projection_matrix: Matrix4<f32>) {
+        self.projection_matrix = projection_matrix;
+        self.update_mvp_matrix();
+    }
+    pub fn replace_model_matrix(&mut self, model_matrix: Matrix4<f32>) {
+        self.model_matrix = model_matrix;
+        self.update_mvp_matrix();
+    }
+    pub fn replace_view_matrix(&mut self, view_matrix: Matrix4<f32>) {
+        self.view_matrix = view_matrix;
+        self.update_mvp_matrix();
+    }
+
     fn update_mvp_matrix(&mut self) {
         self.mvp_matrix = self.projection_matrix * self.view_matrix * self.model_matrix;
     }
